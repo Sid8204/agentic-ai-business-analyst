@@ -7,3 +7,4 @@ data/raw/
 .streamlit/secrets.toml
 *.mp4
 *.mkv
+.claude/

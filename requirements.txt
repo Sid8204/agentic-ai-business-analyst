@@ -1,4 +1,4 @@
-anthropic>=0.40.0
+groq>=0.11.0
 duckdb>=1.0.0
 pandas>=2.0.0
 numpy>=1.26.0

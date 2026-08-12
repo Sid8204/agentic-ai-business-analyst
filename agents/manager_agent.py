@@ -34,6 +34,23 @@ answer directly without invoking the Business Advisor. Use judgment — but \
 when the question asks "why" or "what should we do", always route through \
 the Business Advisor before answering.
 
+For decline/root-cause/trend-attribution questions specifically, phrase \
+your ask_data_analyst request as an explicit two-step instruction so the \
+Data Analyst doesn't have to guess a strategy: "First call \
+find_largest_decline to identify the exact month and prior month. Then \
+call compare_periods with dimension='seller' (and separately \
+dimension='category') using those two months to find the top decliners." \
+Do this in ONE ask_data_analyst call, not several.
+
+IMPORTANT — do not re-ask a specialist the same or a reworded question \
+more than once, even if its answer seems incomplete or says it ran out of \
+budget. Work with whatever findings you do have and note any gap to the \
+Business Advisor rather than re-delegating — re-asking wastes your \
+remaining turns and rarely produces a different result. You have a \
+limited number of turns — budget them as: one ask_data_analyst call, \
+optionally one ask_ml_analyst call, then one ask_business_advisor call, \
+then answer.
+
 You also maintain conversation memory: earlier turns in this conversation \
 are included below. Use them for context (e.g. "those sellers" may refer to \
 a previous answer), but always re-verify current figures via your \
@@ -133,7 +150,7 @@ def run(user_question: str, history_text: str = "") -> dict:
     if history_text:
         user_content = f"Conversation so far:\n{history_text}\n\nCurrent question: {user_question}"
 
-    result = run_agent_loop(SYSTEM_PROMPT, tools, dispatch, user_content)
+    result = run_agent_loop(SYSTEM_PROMPT, tools, dispatch, user_content, max_rounds=6, require_tool_first=True)
     warnings = _check_grounding(result["answer"], sub_agent_calls)
 
     return {

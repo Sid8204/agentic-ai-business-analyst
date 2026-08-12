@@ -74,8 +74,18 @@ def main() -> None:
 
 
 def build_views(con: duckdb.DuckDBPyConnection, loaded: dict) -> None:
+    # The raw dataset includes a handful of pre-launch "seed" orders in
+    # Sep/Oct/Dec 2016 (near-zero volume; Nov 2016 is missing entirely) and
+    # a final month (Sep 2018) truncated by the dataset's collection cutoff
+    # to a single order. These are data artifacts, not real business
+    # signal, so every analyst-facing view is scoped to the operational
+    # window where the marketplace was actually running at scale. Raw
+    # tables (orders, order_items, ...) are left untouched for full
+    # transparency; only these derived views are filtered.
+    operational_window = "date_trunc('month', o.order_purchase_timestamp) BETWEEN '2017-01-01' AND '2018-08-01'"
+
     if "orders" in loaded and "order_items" in loaded:
-        con.execute("""
+        con.execute(f"""
             CREATE VIEW monthly_sales AS
             SELECT
                 date_trunc('month', o.order_purchase_timestamp) AS month,
@@ -85,13 +95,14 @@ def build_views(con: duckdb.DuckDBPyConnection, loaded: dict) -> None:
             FROM orders o
             JOIN order_items oi ON oi.order_id = o.order_id
             WHERE o.order_status NOT IN ('canceled', 'unavailable')
+              AND {operational_window}
             GROUP BY 1
             ORDER BY 1
         """)
         print("  created view: monthly_sales")
 
     if "orders" in loaded and "order_items" in loaded and "sellers" in loaded:
-        con.execute("""
+        con.execute(f"""
             CREATE VIEW seller_performance AS
             SELECT
                 s.seller_id,
@@ -104,13 +115,14 @@ def build_views(con: duckdb.DuckDBPyConnection, loaded: dict) -> None:
             JOIN order_items oi ON oi.order_id = o.order_id
             JOIN sellers s ON s.seller_id = oi.seller_id
             WHERE o.order_status NOT IN ('canceled', 'unavailable')
+              AND {operational_window}
             GROUP BY 1, 2, 3
             ORDER BY 3, revenue DESC
         """)
         print("  created view: seller_performance")
 
     if all(t in loaded for t in ("orders", "order_items", "products", "category_translation")):
-        con.execute("""
+        con.execute(f"""
             CREATE VIEW category_performance AS
             SELECT
                 COALESCE(t.product_category_name_english, p.product_category_name, 'unknown') AS category,
@@ -122,6 +134,7 @@ def build_views(con: duckdb.DuckDBPyConnection, loaded: dict) -> None:
             JOIN products p ON p.product_id = oi.product_id
             LEFT JOIN category_translation t ON t.product_category_name = p.product_category_name
             WHERE o.order_status NOT IN ('canceled', 'unavailable')
+              AND {operational_window}
             GROUP BY 1, 2
             ORDER BY 2, revenue DESC
         """)

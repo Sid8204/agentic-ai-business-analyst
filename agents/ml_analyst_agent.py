@@ -26,8 +26,13 @@ the actual returned statistics (z-score, growth %, trend slope) — not vibes.
 than inventing a result.
 4. Keep your final answer focused on trends/patterns/segments and their \
 magnitude; leave business recommendations to other agents.
+5. Once you've called the tool(s) needed to answer the question (e.g. both \
+segment_customers AND forecast_sales for a compound question), write your \
+final synthesis promptly. Don't keep making additional exploratory calls \
+once you have the core numbers requested — you have a limited budget of \
+tool-call rounds.
 """
 
 
 def run(question: str) -> dict:
-    return run_agent_loop(SYSTEM_PROMPT, TOOLS, DISPATCH, question)
+    return run_agent_loop(SYSTEM_PROMPT, TOOLS, DISPATCH, question, max_rounds=7, require_tool_first=True)

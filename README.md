@@ -4,8 +4,8 @@ An agentic AI system that answers open-ended business questions over the
 [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
 by delegating across a **Manager Agent**, a **Data Analyst Agent**, an
 **ML Analyst Agent**, and a **Business Advisor Agent** — each a real,
-independent Claude tool-use loop with its own system prompt, tools, and
-reasoning trace.
+independent LLM tool-use loop (Groq's free API, `openai/gpt-oss-120b`)
+with its own system prompt, tools, and reasoning trace.
 
 Built for the MBCIE Centre for AI technical assessment.
 
@@ -70,9 +70,9 @@ Source: [`diagram/architecture.mmd`](diagram/architecture.mmd).
 
 ### Why this design
 
-- **Real multi-agent, not role-play**: each specialist is its own Claude
-  API call with its own system prompt and tool set — not one model
-  pretending to be three roles in a single completion.
+- **Real multi-agent, not role-play**: each specialist is its own LLM API
+  call with its own system prompt and tool set — not one model pretending
+  to be three roles in a single completion.
 - **The Manager has no data access.** It can only reach the dataset by
   delegating, which forces every quantitative claim to flow through an
   agent that actually queried something.
@@ -89,8 +89,8 @@ Source: [`diagram/architecture.mmd`](diagram/architecture.mmd).
 
 | Requirement | Implementation |
 |---|---|
-| Agentic workflow, multiple tools | 4 agents ([`agents/`](agents/)), 5 tools across SQL + ML |
-| SQL / data-analysis tool | [`agents/tools_sql.py`](agents/tools_sql.py) — `get_schema`, `run_sql` over DuckDB |
+| Agentic workflow, multiple tools | 4 agents ([`agents/`](agents/)), 7 tools across SQL + ML |
+| SQL / data-analysis tool | [`agents/tools_sql.py`](agents/tools_sql.py) — `get_schema`, `run_sql`, plus two purpose-built analysis tools (`find_largest_decline`, `compare_periods`) that replace error-prone hand-written window-function SQL for root-cause questions |
 | ML capability | [`agents/tools_ml.py`](agents/tools_ml.py) — forecasting (Holt exponential smoothing), anomaly detection (trend-residual z-scores), customer segmentation (KMeans on RFM) |
 | Dashboard / UI | [`app.py`](app.py) — Streamlit chat, agent trace panel, Plotly charts |
 | Memory / conversation state | [`agents/memory.py`](agents/memory.py) + `st.session_state`; prior Q&A passed into every Manager call |
@@ -114,14 +114,15 @@ pip install -r requirements.txt
 1. Download the [Olist dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
    and extract the CSVs into `data/raw/`.
 2. Build the database: `python db/build_db.py`
-3. Copy `.env.example` to `.env` and add your `ANTHROPIC_API_KEY`.
+3. Copy `.env.example` to `.env` and add a free `GROQ_API_KEY` from
+   [console.groq.com](https://console.groq.com) (no credit card required).
 4. Run the app: `streamlit run app.py`
 
 ## Project structure
 
 ```
 agents/
-  base_agent.py            Generic Claude tool-use loop shared by every agent
+  base_agent.py            Generic tool-use loop (Groq API) shared by every agent
   tools_sql.py              get_schema, run_sql (DuckDB)
   tools_ml.py                forecast_sales, detect_anomalies, segment_customers
   data_analyst_agent.py     Specialist: SQL fact-finding
@@ -140,11 +141,30 @@ diagram/architecture.mmd     Architecture diagram source
 - The Olist dataset has data-quality artifacts: a handful of near-zero
   "seed" orders in Sep/Oct/Dec 2016 (Nov 2016 is missing entirely) and a
   truncated final month (Sep 2018, 1 order — the dataset's collection
-  cutoff). ML tools scope trend analysis to the real operational window
-  (Jan 2017–Aug 2018); this is documented in the tool/view descriptions so
-  agents don't misread these as genuine anomalies.
+  cutoff). The analyst views (`monthly_sales`, `seller_performance`,
+  `category_performance`) are filtered to the real operational window
+  (2017-01–2018-08) at the database level, not just by prompt instruction.
+  Raw tables still contain 2016 data (needed for full customer history in
+  segmentation), so the Data Analyst's system prompt and schema
+  descriptions explicitly flag that any 2016 comparison is misleading
+  (e.g. a literal "2017 vs 2016" calculation produces a technically-correct
+  but meaningless "10,000%+ growth" figure) — this surfaced during testing
+  and is now called out rather than silently reported.
 - The grounding check is a heuristic (numeric substring match against
   tool evidence) — it catches fabricated figures but isn't a formal
   verifier.
 - No persistent storage of conversation history across app restarts
   (memory lives in the Streamlit session only, by design for this scope).
+- Groq's free tier enforces a per-model daily token cap (200k/day for
+  `openai/gpt-oss-120b` at time of writing) in addition to a per-minute
+  rate limit. Short per-minute limits are retried automatically
+  ([`agents/base_agent.py`](agents/base_agent.py)); if the daily cap is
+  exhausted, the affected agent returns a clear "rate limit hit, try again
+  later" message instead of crashing — this surfaced during our own
+  development testing and is handled, not hypothetical.
+- Forcing a tool call on an agent's first turn (so it can't answer a data
+  question "from memory") occasionally backfires when the model correctly
+  decides no tool is needed — e.g. explaining why a 2016 comparison is
+  invalid needs no query. Groq's API rejects that case outright, but the
+  model's intended answer is still recoverable from the error payload and
+  is used instead of surfacing a raw API error ([`agents/base_agent.py`](agents/base_agent.py)).

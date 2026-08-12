@@ -20,11 +20,22 @@ st.set_page_config(page_title="Agentic AI Business Analyst — Olist", layout="w
 DB_PATH = Path(__file__).resolve().parent / "olist.duckdb"
 
 
+def _md_safe(text: str) -> str:
+    """Streamlit's markdown renderer treats lone $ as LaTeX math
+    delimiters, which mangles dollar amounts in agent-generated text
+    (e.g. "$6,787 and $9,495" can render as garbled math). Backslash-
+    escaping ("\\$") gets silently swallowed by the renderer instead of
+    showing a literal $, so a full-width dollar sign (visually identical,
+    not a markdown/LaTeX special character) is substituted instead. Agent
+    answers are plain business prose, never intentional LaTeX."""
+    return text.replace("$", "＄")
+
+
 def _check_prerequisites() -> str | None:
     if not DB_PATH.exists():
         return "Database not found. Run `python db/build_db.py` first (after downloading the Olist CSVs into data/raw/)."
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return "ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your Anthropic API key."
+    if not os.environ.get("GROQ_API_KEY"):
+        return "GROQ_API_KEY is not set. Copy .env.example to .env and add a free key from console.groq.com."
     return None
 
 
@@ -102,10 +113,10 @@ def render_trace(sub_agent_calls: list, grounding_warnings: list) -> None:
         return
     with st.expander(f"Agent trace ({len(sub_agent_calls)} sub-agent call(s)) — how this answer was produced", expanded=False):
         for call in sub_agent_calls:
-            st.markdown(f"**{call['agent']}** — _{call['question'][:200]}_")
+            st.markdown(f"**{call['agent']}** — _{_md_safe(call['question'][:200])}_")
             for entry in call["tool_trace"]:
                 st.caption(f"→ called `{entry['tool']}`({entry['input']})")
-            st.write(call["answer"])
+            st.write(_md_safe(call["answer"]))
             st.divider()
         if grounding_warnings:
             st.warning(
@@ -146,7 +157,7 @@ st.caption('Try: "Why did sales decline, and which sellers contributed most to i
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+        st.write(_md_safe(msg["content"]))
         if msg["role"] == "assistant":
             render_trace(msg.get("sub_agent_calls", []), msg.get("grounding_warnings", []))
 
@@ -155,7 +166,7 @@ question = st.chat_input("Ask about sales trends, sellers, categories, forecasts
 if question:
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
-        st.write(question)
+        st.write(_md_safe(question))
 
     with st.chat_message("assistant"):
         with st.spinner("Manager agent is delegating to specialists..."):
@@ -164,7 +175,7 @@ if question:
                 result = manager_agent.run(question, history_text=history_text)
             except Exception as exc:  # noqa: BLE001 — surfaced to the user, not a crash
                 result = {"answer": f"Something went wrong answering that: {exc}", "sub_agent_calls": [], "grounding_warnings": []}
-        st.write(result["answer"])
+        st.write(_md_safe(result["answer"]))
         render_trace(result["sub_agent_calls"], result["grounding_warnings"])
 
     st.session_state.messages.append({
