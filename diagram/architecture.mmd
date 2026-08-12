@@ -1,0 +1,41 @@
+flowchart TD
+    U["User<br/>(Streamlit chat)"] -->|"business question"| M
+
+    subgraph Manager["Manager Agent (orchestrator)"]
+        M["Understand question →<br/>decide who to delegate to"]
+    end
+
+    M -->|"ask_data_analyst(question)"| DA
+    M -->|"ask_ml_analyst(question)"| ML
+    M -->|"ask_business_advisor(findings)"| BA
+
+    subgraph DataAnalyst["Data Analyst Agent"]
+        DA["Claude tool-use loop"]
+        DA --> T1["get_schema()"]
+        DA --> T2["run_sql(query)"]
+        T2 --> DB1[("DuckDB<br/>olist.duckdb")]
+    end
+
+    subgraph MLAnalyst["ML Analyst Agent"]
+        ML["Claude tool-use loop"]
+        ML --> T3["forecast_sales()<br/>statsmodels Holt"]
+        ML --> T4["detect_anomalies()<br/>trend residual z-score"]
+        ML --> T5["segment_customers()<br/>KMeans RFM"]
+        ML --> T2
+        T3 --> DB1
+        T4 --> DB1
+        T5 --> DB1
+    end
+
+    DA -->|"findings + evidence"| M
+    ML -->|"findings + evidence"| M
+
+    subgraph BusinessAdvisor["Business Advisor Agent"]
+        BA["Claude call, no tools —<br/>synthesizes given findings only"]
+    end
+
+    BA -->|"insights + recommendations"| M
+    M -->|"final grounded answer"| G["Grounding check<br/>(numbers must trace to evidence)"]
+    G --> U2["Rendered in Streamlit:<br/>answer + agent trace + charts"]
+
+    Mem[("Conversation memory<br/>(session_state turns)")] -.->|"prior Q&A context"| M
