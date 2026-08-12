@@ -1,80 +1,77 @@
-# Demo recording script (5–10 min)
+# Video script
 
-Record your screen with audio (Windows: Win+Alt+R for Xbox Game Bar, or
-OBS Studio) with the Streamlit app running (`streamlit run app.py`) and a
-code editor open in another window/tab.
+This is a speaking script built around one continuous use case: the sales decline question from the assignment brief. It runs about six to seven minutes if read at a normal pace, comfortably inside the five to ten minute window. Read it in your own words rather than word for word if that feels more natural on camera, the structure and the beats are the important part.
 
-## 1. Intro (30–45s)
+Before you record, have the following open and ready:
 
-"This is an Agentic AI Business Analyst for the Olist e-commerce dataset,
-built for the MBCIE assignment. It uses four real, independent LLM agents
-— a Manager, a Data Analyst, an ML Analyst, and a Business Advisor — each
-with their own tools, coordinated to answer open-ended business questions
-with grounded, cited answers."
+* The Streamlit app running in a browser tab, at a fresh page load with no earlier conversation in it.
+* The GitHub repository open in another tab, scrolled to the architecture diagram in the README.
+* A code editor with `agents/manager_agent.py`, `agents/tools_sql.py`, and `agents/base_agent.py` easy to switch between.
 
-Show the architecture diagram in README.md (or GitHub's rendered mermaid
-view) for ~10 seconds while explaining the flow: Manager delegates to
-Data Analyst / ML Analyst, then to the Business Advisor for synthesis.
+## 1. Introduction (about 30 seconds)
 
-## 2. The flagship question (2–3 min)
+Start on the README with the architecture diagram visible.
 
-In the app, type: **"Why did sales decline, and which sellers contributed
-most to it?"**
+"Hi, I'm Siddharth. This is my submission for the agentic AI business analyst assignment. The idea is a system that can take an open ended business question about the Olist ecommerce dataset and actually go figure out the answer itself: query the data, run some analysis, and explain its reasoning, rather than returning a canned lookup."
 
-While it's thinking, narrate: "The Manager is now delegating — the Data
-Analyst will find exactly which month declined and which sellers drove
-it, the ML Analyst will confirm it's statistically significant, and the
-Business Advisor will turn that into recommendations."
+## 2. Walking through the architecture (about 45 seconds)
 
-Once the answer appears:
-- Read out the headline finding (which month, the % decline, top sellers).
-- Expand the **"Agent trace"** panel — show the actual tool calls each
-  sub-agent made (`find_largest_decline`, `compare_periods`,
-  `detect_anomalies`, `forecast_sales`) and point out the **"Grounding
-  check passed"** message.
-- Point at the rendered anomaly chart.
+Point at the diagram while you talk.
 
-## 3. A second, different-shaped question (1–2 min)
+"I built this as a small team of agents rather than one model doing everything. A Manager agent reads the question and decides who needs to get involved. A Data Analyst agent handles anything that needs a database query. An ML Analyst agent runs forecasting, anomaly detection, or customer segmentation when that's relevant. And a Business Advisor agent takes what the other two found and turns it into an answer with actual recommendations.
 
-Type something ML-flavored: **"Segment our customers and tell me which
-segment we should focus retention efforts on, with a sales forecast for
-context."**
+The important part is that the Manager has no direct access to the data at all. It can only learn things by asking one of the specialists, so there's no way for it to just make a number up. And the Business Advisor has no tools either, so it can only work with evidence it was actually handed."
 
-Narrate while it runs: "This routes to the ML Analyst for KMeans
-segmentation and a forecast, then the Business Advisor turns the segment
-stats into a retention recommendation."
+## 3. Running the use case (about three minutes)
 
-## 4. Memory / follow-up (30s)
+Switch to the app.
 
-Ask a short follow-up that references the prior answer without restating
-it, e.g. **"What about the categories in the same period?"** — point out
-it correctly reuses context from the previous turn instead of asking you
-to repeat yourself.
+"Let me ask it the exact question from the assignment brief."
 
-## 5. Error handling (30s, optional but strong)
+Type into the chat: **Why did sales decline, and which sellers contributed most to it?**
 
-Either: show a question that stresses the system (e.g. ask about "2016
-vs 2017 growth") and point out the agent explicitly flags the 2016 data
-as non-comparable seed data rather than reporting a misleading number —
-or briefly mention it happened during development and is now handled.
+While it is processing:
 
-## 6. Code walkthrough (1–2 min)
+"While that's running, here's what's actually happening behind the scenes. The Manager is asking the Data Analyst to find the month with the sharpest drop and which sellers were behind it, and asking the ML Analyst to check whether that drop is statistically meaningful or just normal noise. Once both come back, it hands everything to the Business Advisor to turn into an actual answer."
 
-Switch to the editor. Show, in order:
-1. `agents/manager_agent.py` — the delegation tools + system prompt.
-2. `agents/tools_sql.py` — `run_sql`'s read-only validation and the
-   `find_largest_decline`/`compare_periods` analysis tools.
-3. `agents/tools_ml.py` — one ML tool (e.g. `detect_anomalies`).
-4. `agents/base_agent.py` — the grounding/`require_tool_first` enforcement
-   and rate-limit handling.
+When the answer appears, read the key parts out loud in your own words: which month declined, the size of the drop, the top sellers involved, and the recommendations at the end. Then say:
 
-## 7. Close (15s)
+"Now let me show you how this answer was actually produced, not just what it says."
 
-"Everything's grounded in real tool calls, errors are handled rather than
-crashing, and the full source, README, and architecture diagram are in
-the GitHub repo." Show the repo URL on screen.
+Click to expand the **Agent trace** panel.
+
+"Every single one of these is a real tool call with real arguments and a real result. You can see the Data Analyst called a tool that finds the largest month over month decline, then compared seller revenue between those two exact months. The ML Analyst ran anomaly detection on the same trend and a short term forecast. And down here it says the grounding check passed, meaning every number in the final answer was traced back to one of these actual results. If a number didn't match anything a tool returned, this would flag it instead of silently trusting it."
+
+Point at the anomaly chart if one rendered.
+
+"And this chart isn't decorative, it's generated directly from the same tool output."
+
+## 4. Showing memory (about 30 seconds)
+
+Type a short follow up that leans on the previous answer without restating it, for example: **What about the categories in that same period?**
+
+"Notice I didn't have to repeat the month or explain what I meant. It remembers the conversation and pulls the right context automatically."
+
+Read the new answer briefly once it appears.
+
+## 5. A quick look at the code (about a minute)
+
+Switch to the editor.
+
+"Just to show this isn't a black box, here's the Manager agent's system prompt. It's explicitly told it has no data access and must delegate everything." (Show `manager_agent.py`.)
+
+"Here's the SQL tool. It only accepts read only statements, and if a query fails it feeds the error back to the model so it can correct itself instead of just giving up." (Show `tools_sql.py`.)
+
+"And this is the shared tool use loop every agent runs on. It's also where I handle rate limits and a couple of edge cases I ran into with the model occasionally deciding it didn't need a tool when it actually had a perfectly good answer without one." (Show `base_agent.py`.)
+
+## 6. Closing (about 20 seconds)
+
+Back to the app or the GitHub repo.
+
+"So that covers the core requirements: a real agentic workflow with multiple tools, a SQL and analysis layer, forecasting and anomaly detection and segmentation for the ML side, a working dashboard, memory across turns, and grounding checks so the answers stay honest. The full source code, the README, and this recording are all in the repository. Thanks for watching."
+
+Show the repo URL clearly on screen for a couple of seconds before cutting.
 
 ---
 
-**Repo:** https://github.com/Sid8204/agentic-ai-business-analyst
-**Submit to:** Kumaresh.r@mbcie.org — repo link + demo video link.
+Repository: https://github.com/Sid8204/agentic-ai-business-analyst

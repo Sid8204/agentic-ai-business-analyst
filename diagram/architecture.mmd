@@ -2,7 +2,7 @@ flowchart TD
     U["User<br/>(Streamlit chat)"] -->|"business question"| M
 
     subgraph Manager["Manager Agent (orchestrator)"]
-        M["Understand question →<br/>decide who to delegate to"]
+        M["Understand the question,<br/>decide who to delegate to"]
     end
 
     M -->|"ask_data_analyst(question)"| DA
@@ -10,32 +10,32 @@ flowchart TD
     M -->|"ask_business_advisor(findings)"| BA
 
     subgraph DataAnalyst["Data Analyst Agent"]
-        DA["Claude tool-use loop"]
+        DA["Tool use loop"]
         DA --> T1["get_schema()"]
         DA --> T2["run_sql(query)"]
         T2 --> DB1[("DuckDB<br/>olist.duckdb")]
     end
 
     subgraph MLAnalyst["ML Analyst Agent"]
-        ML["Claude tool-use loop"]
-        ML --> T3["forecast_sales()<br/>statsmodels Holt"]
-        ML --> T4["detect_anomalies()<br/>trend residual z-score"]
-        ML --> T5["segment_customers()<br/>KMeans RFM"]
+        ML["Tool use loop"]
+        ML --> T3["forecast_sales()<br/>Holt exponential smoothing"]
+        ML --> T4["detect_anomalies()<br/>trend residual z score"]
+        ML --> T5["segment_customers()<br/>KMeans on RFM features"]
         ML --> T2
         T3 --> DB1
         T4 --> DB1
         T5 --> DB1
     end
 
-    DA -->|"findings + evidence"| M
-    ML -->|"findings + evidence"| M
+    DA -->|"findings and evidence"| M
+    ML -->|"findings and evidence"| M
 
     subgraph BusinessAdvisor["Business Advisor Agent"]
-        BA["Claude call, no tools —<br/>synthesizes given findings only"]
+        BA["No tools,<br/>synthesizes given findings only"]
     end
 
-    BA -->|"insights + recommendations"| M
+    BA -->|"insights and recommendations"| M
     M -->|"final grounded answer"| G["Grounding check<br/>(numbers must trace to evidence)"]
-    G --> U2["Rendered in Streamlit:<br/>answer + agent trace + charts"]
+    G --> U2["Rendered in Streamlit:<br/>answer, agent trace, and charts"]
 
-    Mem[("Conversation memory<br/>(session_state turns)")] -.->|"prior Q&A context"| M
+    Mem[("Conversation memory<br/>(session turns)")] -.->|"prior context"| M
