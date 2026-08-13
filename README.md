@@ -90,11 +90,13 @@ I wanted the grounding requirement (never state a number you cannot back up) to 
 
 ## Getting started
 
+A prebuilt `olist.duckdb` is included directly in the repository, so cloning it is enough to run the app immediately. The raw CSV download and build step below are only needed if you want to rebuild the database yourself, for example after updating the data.
+
 ### What you need
 
 * Python 3.10 or newer
 * A free Groq API key (no credit card needed) from `console.groq.com`
-* The Olist dataset from Kaggle
+* The Olist dataset from Kaggle, only if you plan to rebuild the database
 
 ### Setting it up
 

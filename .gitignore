@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 .env
 data/raw/
-*.duckdb
 .streamlit/secrets.toml
 *.mp4
 *.mkv
